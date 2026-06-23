@@ -1,0 +1,38 @@
+#!/bin/sh
+# hp-legacy-mac CUPS filtresi (generic)
+# foomatic-rip yerine geçer; bağlı modele göre per-queue config'i okur.
+# macOS CUPS sandbox'ı /usr/local ve /opt/homebrew exec'ini engellediği için
+# tüm bağımlılıklar BASE altında (sandbox-uyumlu konum) tutulur.
+#
+# CUPS filtre argümanları: 1=job 2=user 3=title 4=copies 5=options [6=file]
+# CUPS ayrıca $PRINTER ortam değişkenini kuyruk adıyla ayarlar.
+
+BASE=/Library/Printers/hp-legacy-mac
+export PATH="$BASE/bin:/usr/bin:/bin"
+export GS_LIB="$BASE/share/ghostscript/Resource/Init:$BASE/share/ghostscript/lib:$BASE/share/ghostscript/Resource/Font:$BASE/share/ghostscript/fonts"
+GS="$BASE/bin/gs"
+
+# --- Per-queue varsayılanları ---
+DRIVER="foo2zjs-wrapper -z3 -P -L0"   # wrapper + sürücü seçenekleri
+COLOR_CAPABLE=0                        # 1 ise renk algılaması aktif
+COLOR_FLAGS="-c -C gs9"               # gs 10.x'te çalışan ICC renk yolu
+
+CONF="$BASE/queues/${PRINTER}.conf"
+[ -r "$CONF" ] && . "$CONF"
+
+# --- Renk modu: iş seçeneklerinden belirle (mono açıkça istenmedikçe renkli) ---
+COLOR=""
+if [ "$COLOR_CAPABLE" = "1" ]; then
+    COLOR="$COLOR_FLAGS"
+    case "$5" in
+        *Monochrome*|*monochrome*|*Grayscale*|*grayscale*|*ColorModel=Gray*|*print-color-mode=monochrome*)
+            COLOR="" ;;
+    esac
+fi
+
+# --- Boru hattını çalıştır ---
+if [ -n "$6" ]; then
+    exec $DRIVER $COLOR -b "$GS" < "$6"
+else
+    exec $DRIVER $COLOR -b "$GS"
+fi
