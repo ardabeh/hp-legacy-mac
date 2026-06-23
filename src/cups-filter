@@ -1,26 +1,26 @@
 #!/bin/sh
-# hp-legacy-mac CUPS filtresi (generic)
-# foomatic-rip yerine geçer; bağlı modele göre per-queue config'i okur.
-# macOS CUPS sandbox'ı /usr/local ve /opt/homebrew exec'ini engellediği için
-# tüm bağımlılıklar BASE altında (sandbox-uyumlu konum) tutulur.
+# hp-legacy-mac CUPS filter (generic)
+# Replaces foomatic-rip; reads a per-queue config based on the connected model.
+# Because the macOS CUPS sandbox blocks exec from /usr/local and /opt/homebrew,
+# all dependencies live under BASE (a sandbox-allowed location).
 #
-# CUPS filtre argümanları: 1=job 2=user 3=title 4=copies 5=options [6=file]
-# CUPS ayrıca $PRINTER ortam değişkenini kuyruk adıyla ayarlar.
+# CUPS filter arguments: 1=job 2=user 3=title 4=copies 5=options [6=file]
+# CUPS also sets the $PRINTER environment variable to the queue name.
 
 BASE=/Library/Printers/hp-legacy-mac
 export PATH="$BASE/bin:/usr/bin:/bin"
 export GS_LIB="$BASE/share/ghostscript/Resource/Init:$BASE/share/ghostscript/lib:$BASE/share/ghostscript/Resource/Font:$BASE/share/ghostscript/fonts"
 GS="$BASE/bin/gs"
 
-# --- Per-queue varsayılanları ---
-DRIVER="foo2zjs-wrapper -z3 -P -L0"   # wrapper + sürücü seçenekleri
-COLOR_CAPABLE=0                        # 1 ise renk algılaması aktif
-COLOR_FLAGS="-c -C gs9"               # gs 10.x'te çalışan ICC renk yolu
+# --- Per-queue defaults ---
+DRIVER="foo2zjs-wrapper -z3 -P -L0"   # wrapper + driver options
+COLOR_CAPABLE=0                        # 1 enables color detection
+COLOR_FLAGS="-c -C gs9"               # ICC color path that works on gs 10.x
 
 CONF="$BASE/queues/${PRINTER}.conf"
 [ -r "$CONF" ] && . "$CONF"
 
-# --- Renk modu: iş seçeneklerinden belirle (mono açıkça istenmedikçe renkli) ---
+# --- Color mode: decide from job options (color unless mono is explicitly requested) ---
 COLOR=""
 if [ "$COLOR_CAPABLE" = "1" ]; then
     COLOR="$COLOR_FLAGS"
@@ -30,7 +30,7 @@ if [ "$COLOR_CAPABLE" = "1" ]; then
     esac
 fi
 
-# --- Boru hattını çalıştır ---
+# --- Run the pipeline ---
 if [ -n "$6" ]; then
     exec $DRIVER $COLOR -b "$GS" < "$6"
 else
